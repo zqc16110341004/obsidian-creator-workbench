@@ -1,0 +1,25 @@
+import {readFile,readdir,writeFile,chmod} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {resolve,join} from 'node:path';
+const out=resolve('obsidian-dist/creator-workbench');
+const build=spawnSync(process.execPath,['scripts/build-obsidian.mjs'],{stdio:'inherit'});
+if(build.status!==0)process.exit(build.status||1);
+const manifest=JSON.parse(await readFile(join(out,'manifest.json'),'utf8'));
+const pkg=JSON.parse(await readFile('package.json','utf8'));
+if(pkg.version!==manifest.version)throw Error('Package and plugin versions differ');
+const required=['main.js','manifest.json','styles.css','workbench.html','transcribe.py','README.md','HELP.md','FEISHU_SETUP.md','LICENSE',...(process.platform==='darwin'?['recognize-macos']:[])];
+const names=await readdir(out);
+if(names.length!==required.length||names.some(n=>!required.includes(n)))throw Error('Unexpected runtime file in package');
+const files=[];
+for(const name of required){const bytes=await readFile(join(out,name));if(!bytes.length)throw Error('Empty runtime file: '+name);files.push({name,size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});}
+if(process.platform==='darwin')await chmod(join(out,'recognize-macos'),0o755);
+const platform=process.platform==='darwin'?'macos':process.platform;
+const base=`creator-workbench-${manifest.version}-${platform}-${process.arch}`;
+const zip=resolve('obsidian-dist',base+'.zip');
+const result=spawnSync('/usr/bin/zip',['-q','-r','-FS',zip,'creator-workbench'],{cwd:resolve('obsidian-dist'),stdio:'inherit',shell:false});
+if(result.status!==0)throw Error('ZIP creation failed; install the zip utility');
+const bytes=await readFile(zip),sha256=createHash('sha256').update(bytes).digest('hex');
+await writeFile(resolve('obsidian-dist',base+'.sha256'),`${sha256}  ${base}.zip\n`);
+await writeFile(resolve('obsidian-dist',base+'-files.json'),JSON.stringify({version:manifest.version,platform,arch:process.arch,files,zip:{name:base+'.zip',size:bytes.length,sha256}},null,2)+'\n');
+console.log(`Release ready: ${zip}\nSHA256: ${sha256}`);

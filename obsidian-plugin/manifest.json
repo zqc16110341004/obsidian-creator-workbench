@@ -1,0 +1,10 @@
+{
+  "id": "creator-workbench",
+  "name": "内容创作工作台",
+  "version": "0.16.1",
+  "minAppVersion": "1.14.4",
+  "description": "本地内容创作工作台：飞书选题读取与确认新增、原站内嵌、资料归档、内容采样与复盘、视频拆解、封面版本、公开动态及月度预算。",
+  "author": "Zhang Qichao",
+  "isDesktopOnly": true,
+  "authorUrl": "https://github.com/zqc16110341004"
+}
